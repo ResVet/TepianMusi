@@ -9,6 +9,7 @@ import { cardBlob, drawCard } from './ui/kartu';
 import { progress } from './ui/progress';
 import { sound } from './ui/sound';
 import type { World } from './world/index';
+import { dayPart } from './world/clock';
 import type { Interaction } from './world/interact/base';
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
@@ -193,8 +194,10 @@ if (!webgl) {
         const el = en.target as HTMLElement;
         const i = Number(el.dataset.idx ?? 0);
         if (el.dataset.seg === 'stop') {
+          const [hh, mm] = stations[i].clock.split('.').map(Number);
+          const hour = hh + mm / 60;
           updateRail(i, 0);
-          updateClock(stations[i].clock, '', Number(stations[i].clock.slice(0, 2)) >= 18);
+          updateClock(stations[i].clock, dayPart(hour), hour >= 18.2);
         } else if (el.dataset.seg === 'hero') updateClock(clocks[0], 'Subuh', false);
       }
     },
@@ -264,13 +267,15 @@ function reveals() {
   gsap.from('.sub-utama', { y: 24, opacity: 0, duration: 1, ease: 'power3.out', delay: 0.5 });
   gsap.from('.karcis', { y: 60, rotate: 4, opacity: 0, duration: 1.3, ease: 'power3.out', delay: 0.35 });
 
+  // on one-column layouts the panels rise instead of sliding in from a side
+  const narrow = matchMedia('(max-width: 1023px)').matches;
   for (const sec of $$('.dermaga')) {
     const papan = sec.querySelector<HTMLElement>('.papan')!;
     const side = sec.classList.contains('dermaga--kiri') ? -1 : 1;
     const h2 = papan.querySelector<HTMLElement>('h2')!;
     const split = SplitText.create(h2, { type: 'words', wordsClass: 'kata', aria: 'auto' });
     const tl = gsap.timeline({ scrollTrigger: { trigger: papan, start: 'top 82%', once: true } });
-    tl.from(papan, { x: 70 * side, opacity: 0, duration: 1.1, ease: 'power3.out' })
+    tl.from(papan, { x: narrow ? 0 : 70 * side, y: narrow ? 50 : 0, opacity: 0, duration: 1.1, ease: 'power3.out' })
       .from(papan.querySelector('.papan-kepala'), { opacity: 0, y: 10, duration: 0.6 }, '-=0.7')
       .from(split.words, { yPercent: 100, opacity: 0, duration: 0.8, ease: 'power3.out', stagger: 0.06 }, '-=0.55')
       .from(papan.querySelector('.papan-sila'), { opacity: 0, y: 12, duration: 0.6 }, '-=0.5');
@@ -285,7 +290,7 @@ function reveals() {
   }
   for (const p of $$('.lintas p')) {
     const right = p.parentElement?.classList.contains('lintas--kanan');
-    gsap.from(p, { x: right ? 50 : -50, opacity: 0, duration: 1.1, ease: 'power3.out', scrollTrigger: { trigger: p, start: 'top 80%', once: true } });
+    gsap.from(p, { x: narrow ? 0 : right ? 50 : -50, y: narrow ? 30 : 0, opacity: 0, duration: 1.1, ease: 'power3.out', scrollTrigger: { trigger: p, start: 'top 80%', once: true } });
   }
   const kartuH = $('#judul-kartu');
   if (kartuH) {

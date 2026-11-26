@@ -72,10 +72,22 @@ export class Ngobeng extends Interaction {
     this.find();
     const g = this.world.stations.groups[1];
     g.updateMatrixWorld(true);
-    this.worldOf(this.model!, [CENTER.x - 0.45, 0.5, CENTER.z], this.orbit.pivot);
-    // high and steep: the veranda's front beam sits between a low camera and the sepra
-    Object.assign(this.orbit, { yaw: 0.05, pitch: 1.2, dist: 3.7, fov: 44 });
-    this.setLimits({ yawMin: -0.9, yawMax: 0.9, pitchMin: 0.85, pitchMax: 1.42, distMin: 2.4, distMax: 5.2 });
+    // High and steep: the veranda's front beam sits between a low camera and
+    // the sepra. On a wide screen the tray sits to the left of the sepra; on a
+    // phone held upright, look down the tray-to-sepra line instead so both
+    // fit above the sheet.
+    if (this.world.width >= this.world.height) {
+      this.worldOf(this.model!, [CENTER.x - 0.45, 0.5, CENTER.z], this.orbit.pivot);
+      Object.assign(this.orbit, { yaw: 0.05, pitch: 1.2, dist: 3.7, fov: 44 });
+      this.setLimits({ yawMin: -0.9, yawMax: 0.9, pitchMin: 0.85, pitchMax: 1.42, distMin: 2.4, distMax: 5.2 });
+    } else {
+      const o = this.worldOf(this.model!, [CENTER.x, 0.5, CENTER.z]);
+      const along = this.worldOf(this.model!, [CENTER.x + 1, 0.5, CENTER.z]).sub(o);
+      const yaw = Math.atan2(-along.z, along.x);
+      this.worldOf(this.model!, [CENTER.x - 0.92, 0.5, CENTER.z], this.orbit.pivot);
+      Object.assign(this.orbit, { yaw, pitch: 1.25, dist: 3.3, fov: 44 });
+      this.setLimits({ yawMin: yaw - 0.9, yawMax: yaw + 0.9, pitchMin: 0.85, pitchMax: 1.42, distMin: 2.2, distMax: 4.6 });
+    }
     if (this.roof) this.roof.visible = false;
 
     const st = stations[1];

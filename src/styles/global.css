@@ -364,6 +364,19 @@ body::after {
   }
 }
 
+@media (max-width: 400px) {
+  .topbar {
+    gap: 0.5rem;
+    padding: 0 0.75rem;
+  }
+  .jam .jam-ikon {
+    display: none;
+  }
+  .alat {
+    gap: 0.35rem;
+  }
+}
+
 /* --------------------------------------------------------------- rail --- */
 .rute {
   position: fixed;
@@ -456,6 +469,8 @@ body::after {
 main {
   position: relative;
   z-index: var(--z-content);
+  /* panels slide in from the side; never let that widen the page on phones */
+  overflow-x: clip;
 }
 
 .berangkat {

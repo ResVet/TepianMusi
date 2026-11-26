@@ -114,13 +114,18 @@ export abstract class Interaction {
   private writePose() {
     const o = this.orbit;
     const cp = Math.cos(o.pitch);
+    // Orbits are tuned for landscape screens. A phone held upright sees far
+    // less to the sides, so step back and widen the lens a little there.
+    const aspect = this.world.width / Math.max(1, this.world.height);
+    const k = aspect >= 1.2 ? 1 : MathUtils.clamp(1.2 / aspect, 1, 1.75);
+    const d = o.dist * k;
     this.pose.pos.set(
-      o.pivot.x + Math.cos(o.yaw) * cp * o.dist,
-      o.pivot.y + Math.sin(o.pitch) * o.dist,
-      o.pivot.z - Math.sin(o.yaw) * cp * o.dist,
+      o.pivot.x + Math.cos(o.yaw) * cp * d,
+      o.pivot.y + Math.sin(o.pitch) * d,
+      o.pivot.z - Math.sin(o.yaw) * cp * d,
     );
     this.pose.target.copy(o.pivot);
-    this.pose.fov = o.fov;
+    this.pose.fov = o.fov + (aspect < 1 ? 10 : 0);
     this.pose.shiftX = 0;
     // leave room for the bottom sheet
     this.pose.shiftY = this.world.narrow ? 0.24 : 0.15;

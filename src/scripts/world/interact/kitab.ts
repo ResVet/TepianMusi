@@ -90,7 +90,8 @@ class TurningPage {
   private zNear: number;
   private zFar: number;
 
-  constructor(box: Box3) {
+  /** `gltfUV`: the page textures follow the glTF layout (v = 0 on the far edge). */
+  constructor(box: Box3, gltfUV: boolean) {
     this.x0 = box.min.x;
     this.w = box.max.x - box.min.x;
     this.h = box.max.y + 0.0012;
@@ -110,10 +111,11 @@ class TurningPage {
     const geo = (isBack: boolean) => {
       const g = new BufferGeometry();
       const uv = new Float32Array((SEG + 1) * 4);
-      // same layout as the page UVs from Blender: v = 0 on the far edge
+      // same layout as the static pages, so the same textures fit
+      const near = gltfUV ? 1 : 0;
       for (let i = 0; i <= SEG; i++) {
         const u = isBack ? 1 - i / SEG : i / SEG;
-        uv.set([u, 1, u, 0], i * 4);
+        uv.set([u, near, u, 1 - near], i * 4);
       }
       g.setAttribute('position', this.pos);
       g.setAttribute('normal', isBack ? this.nb : this.nf);
@@ -420,7 +422,7 @@ export class Kitab extends Interaction {
     sound.play('page');
     if (!this.sheet) {
       src.geometry.computeBoundingBox();
-      this.sheet = new TurningPage(src.geometry.boundingBox!);
+      this.sheet = new TurningPage(src.geometry.boundingBox!, this.gltfUV);
       src.parent!.add(this.sheet.group);
     }
     const s = this.sheet;
