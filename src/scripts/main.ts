@@ -116,6 +116,9 @@ if (sobek) {
   let start: { x: number; id: number } | null = null;
   let dx = 0;
   let moved = false;
+  // the stub is a link: keep the browser from starting a link drag, which
+  // would cancel the pointer stream half-way through the tear
+  sobek.addEventListener('dragstart', (e) => e.preventDefault());
   sobek.addEventListener('pointerdown', (e) => {
     if (torn) return;
     start = { x: e.clientX, id: e.pointerId };
