@@ -1,0 +1,354 @@
+---
+import '@fontsource-variable/newsreader/opsz.css';
+import '@fontsource-variable/newsreader/opsz-italic.css';
+import '@fontsource-variable/plus-jakarta-sans/index.css';
+import '../styles/global.css';
+import { stations } from '../data/stations';
+import { icons } from '../generated/icons';
+import { BASE as base } from '../scripts/base';
+import { AMPERA_Z, SITES, START, leftEdge, rightEdge, tripPolyline } from '../scripts/world/layout';
+
+const title = 'Sila di Tepian Musi';
+const description =
+  'Perjalanan ketek 3D dari subuh sampai malam di Sungai Musi. Singgah di lima dermaga dan temukan nilai Pancasila dalam budaya Palembang.';
+
+const captions = [
+  { text: 'Ketek berangkat dari hilir. Kabut masih menggantung di atas air, dan rumah-rumah panggung mulai menyalakan lampu dapur.', time: '05.40', to: 'menuju Dermaga I' },
+  { text: 'Matahari naik dari timur, tepat di belakang ketek. Air Musi pelan-pelan berubah dari kelabu menjadi cokelat susu.', time: '07.20', to: 'menuju Dermaga II' },
+  { text: 'Sungai makin ramai. Jukung dan perahu tambang lalu-lalang di antara rumah rakit yang tertambat di tepian.', time: '10.00', to: 'menuju Dermaga III' },
+  { text: 'Panas siang mulai reda. Bayangan rumah panggung memanjang ke arah sungai, dan ketek terus mudik ke hulu.', time: '14.10', to: 'menuju Dermaga IV' },
+  { text: 'Langit barat memerah. Di depan, dua menara Ampera makin jelas, lalu lampunya menyala satu per satu.', time: '18.20', to: 'menuju Dermaga V' },
+];
+
+const actionIcons = ['hand-stars-linear', 'cup-hot-linear', 'chef-hat-linear', 'book-2-linear', 'lightbulb-bolt-linear'];
+const panelSide = ['kanan', 'kiri', 'kanan', 'kiri', 'kanan'];
+// stills from the scene, shown only when the browser cannot run WebGL
+const fotoAlt = [
+  'Masjid Cheng Ho di tepi Musi pada pagi hari',
+  'Rumah rakit di Seberang Ulu dengan idangan ngobeng di berandanya',
+  'Kampung Al-Munawar dan Kampung Kapitan di tepi sungai pada siang hari',
+  'Balai panggung di tepian pada sore hari',
+  'Jembatan Ampera pada malam hari dengan lampu menyala',
+];
+
+// ---- static map: world (x, z) -> svg. West (toward Ampera) to the right, north up.
+const Z0 = START[2] + 70;
+const Z1 = AMPERA_Z - 170;
+const X0 = 250;
+const X1 = -260;
+const MW = 1000;
+const sc = MW / (Z0 - Z1);
+const MH = Math.round((X0 - X1) * sc);
+const mx = (z: number) => ((Z0 - z) * sc).toFixed(1);
+const my = (x: number) => ((X0 - x) * sc).toFixed(1);
+const zs: number[] = [];
+for (let z = Z0; z >= Z1; z -= 20) zs.push(z);
+const riverPath = `M${zs.map((z) => `${mx(z)},${my(rightEdge(z))}`).join(' L')} L${[...zs].reverse().map((z) => `${mx(z)},${my(leftEdge(z))}`).join(' L')} Z`;
+const trip = tripPolyline(24);
+const tripPath = `M${trip.map(([x, z]) => `${mx(z)},${my(x)}`).join(' L')}`;
+const bridge = { x1: mx(AMPERA_Z), y1: my(leftEdge(AMPERA_Z) - 22), y2: my(rightEdge(AMPERA_Z) + 22) };
+const marks = SITES.map((s, i) => ({ x: mx(s.berth[2]), y: my(s.berth[0]), n: stations[i].roman }));
+const allSources = stations.flatMap((s) => s.sources);
+const year = new Date().getFullYear();
+---
+
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#0a1512" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={new URL(`${base}img/og.jpg`, Astro.site).toString()} />
+    <meta property="og:locale" content="id_ID" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
+    <link rel="preload" href={`${base}models/ketek.glb`} as="fetch" type="model/gltf-binary" crossorigin />
+    <script is:inline>
+      (function () {
+        var d = document.documentElement;
+        d.classList.add('js');
+        var ok = false;
+        try {
+          var c = document.createElement('canvas');
+          ok = !!(window.WebGL2RenderingContext && c.getContext('webgl2'));
+        } catch (e) {}
+        d.classList.add(ok ? 'has-webgl' : 'no-webgl');
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) d.classList.add('is-reduced');
+      })();
+    </script>
+  </head>
+  <body>
+    <a class="skip" href="#dermaga-1">Lewati ke dermaga pertama</a>
+
+    <div class="poster" aria-hidden="true">
+      <img src={`${base}img/poster.webp`} alt="" width="1600" height="900" decoding="async" fetchpriority="low" />
+    </div>
+    <div id="dunia" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <a class="merek" href="#berangkat">Sila di Tepian Musi</a>
+      <p class="jam" aria-label="Waktu perjalanan">
+        <span class="jam-ikon" data-ikon="siang" set:html={icons['sun-2-linear']} />
+        <span class="jam-ikon" data-ikon="malam" hidden set:html={icons['moon-linear']} />
+        <span id="jam-teks">05.20</span>
+        <span class="jam-sub" id="jam-sub">Subuh</span>
+      </p>
+      <div class="alat">
+        <button class="tombol tombol--hantu" type="button" id="buka-peta" aria-haspopup="dialog">
+          <Fragment set:html={icons['map-linear']} /><span class="label">Peta</span>
+        </button>
+        <button class="tombol tombol--hantu" type="button" id="suara" aria-pressed="false">
+          <span class="suara-mati" set:html={icons['volume-cross-linear']} />
+          <span class="suara-nyala" hidden set:html={icons['volume-loud-linear']} />
+          <span class="label">Suara</span>
+        </button>
+      </div>
+    </header>
+
+    <nav class="rute" aria-label="Rute perjalanan">
+      <i class="rute-isi" aria-hidden="true"></i>
+      <a class="rute-awal" href="#berangkat" aria-label="Kembali ke keberangkatan">0</a>
+      {
+        stations.map((s) => (
+          <a href={`#${s.id}`} data-rute={s.num - 1} aria-label={`Dermaga ${s.roman}: ${s.title}`}>
+            {s.roman}
+          </a>
+        ))
+      }
+    </nav>
+
+    <main id="isi">
+      <section id="berangkat" class="berangkat" data-seg="hero" data-idx="0" aria-labelledby="judul-utama">
+        <div class="berangkat-teks">
+          <h1 class="judul-utama" id="judul-utama">Sila di <em>Tepian Musi</em></h1>
+          <p class="sub-utama">
+            Naik ketek dari subuh sampai malam, singgah di lima dermaga, dan temukan nilai Pancasila dalam budaya Palembang.
+          </p>
+        </div>
+
+        <div class="karcis" id="karcis">
+          <div class="karcis-badan">
+            <div class="karcis-kepala">
+              <strong>Karcis Ketek</strong>
+              <span>No. 1945</span>
+            </div>
+            <dl class="karcis-isi">
+              <div><dt>Dari</dt><dd>Hilir Musi</dd></div>
+              <div><dt>Ke</dt><dd>Jembatan Ampera</dd></div>
+              <div><dt>Berangkat</dt><dd>05.20</dd></div>
+              <div><dt>Singgah</dt><dd>5 dermaga</dd></div>
+              <div class="karcis-nama">
+                <label for="nama">Nama penumpang</label>
+                <input id="nama" name="nama" type="text" autocomplete="nickname" maxlength="24" placeholder="Tulis namamu" />
+                <small>Dipakai untuk Kartu Sila di akhir perjalanan dan hanya disimpan di perangkatmu.</small>
+              </div>
+            </dl>
+          </div>
+          <div class="karcis-lubang" aria-hidden="true"></div>
+          <a class="karcis-sobek" id="sobek" href="#lintas-1">
+            <span class="sobek-teks">
+              <strong id="sobek-judul">Mulai berlayar</strong>
+              <span id="sobek-status">Gulir ke bawah untuk membaca</span>
+            </span>
+            <span class="sobek-cap" aria-hidden="true">SAH</span>
+            <span class="karcis-muat" aria-hidden="true"><i></i></span>
+          </a>
+        </div>
+      </section>
+
+      {
+        stations.map((s, i) => (
+          <>
+            <section id={`lintas-${i + 1}`} class={`lintas lintas--${i % 2 ? 'kanan' : 'kiri'}`} data-seg="leg" data-idx={i} aria-label={`Perjalanan ${captions[i].to}`}>
+              <p>
+                {captions[i].text}
+                <span>
+                  {captions[i].time} · {captions[i].to}
+                </span>
+              </p>
+            </section>
+
+            <section id={s.id} class={`dermaga dermaga--${panelSide[i]}`} data-seg="stop" data-idx={i} aria-labelledby={`judul-${s.num}`}>
+              <article class="papan">
+                <div class="cap" aria-hidden="true">
+                  <div>
+                    <b>{s.roman}</b>
+                    <span>SINGGAH</span>
+                  </div>
+                </div>
+                <header class="papan-kepala">
+                  <span class="papan-nomor">Dermaga {s.roman}</span>
+                  <span class="papan-tempat">
+                    {s.place}
+                    <b>{s.clock}</b>
+                  </span>
+                </header>
+                <h2 id={`judul-${s.num}`} class="papan-judul">
+                  {s.title}
+                </h2>
+                <p class="papan-sila">
+                  <span>{s.silaShort}</span>
+                  {s.sila}
+                </p>
+                <figure class="foto-dermaga">
+                  <img src={`${base}img/dermaga-${s.num}.webp`} alt={fotoAlt[i]} width="1200" height="750" loading="lazy" decoding="async" />
+                </figure>
+                <div class="cerita">
+                  {s.story.map((p) => (
+                    <p>{p}</p>
+                  ))}
+                </div>
+                <p class="catatan">
+                  <Fragment set:html={icons['info-circle-linear']} />
+                  <span>{s.note}</span>
+                </p>
+                <div class="ajak" hidden>
+                  <button class="tombol tombol--emas" type="button" data-interaksi={i} aria-describedby={`ajak-${s.num}`}>
+                    <Fragment set:html={icons[actionIcons[i]]} />
+                    <span class="ajak-label">{s.action}</span>
+                  </button>
+                  <p id={`ajak-${s.num}`}>{s.actionHint}</p>
+                </div>
+                <p class="renung">{s.reflect}</p>
+                <details class="sumber">
+                  <summary>
+                    Sumber <Fragment set:html={icons['alt-arrow-down-linear']} />
+                  </summary>
+                  <ol>
+                    {s.sources.map((src) => (
+                      <li>{src.url ? <a href={src.url} rel="noopener" target="_blank">{src.label}</a> : src.label}</li>
+                    ))}
+                  </ol>
+                </details>
+              </article>
+            </section>
+          </>
+        ))
+      }
+
+      <section id="kartu" class="kartu" data-seg="end" data-idx="0" aria-labelledby="judul-kartu">
+        <div class="kartu-teks">
+          <h2 id="judul-kartu">Kartu Sila</h2>
+          <p>
+            Setiap dermaga yang kamu selesaikan memberi satu cap. Kumpulkan kelimanya, lalu simpan kartu ini sebagai
+            kenang-kenangan perjalanan menyusuri Musi.
+          </p>
+          <div class="kartu-belum" id="kartu-belum" aria-live="polite"></div>
+          <div class="kartu-aksi">
+            <button class="tombol tombol--emas" type="button" id="kartu-unduh">
+              <Fragment set:html={icons['download-minimalistic-linear']} />Simpan kartu
+            </button>
+            <button class="tombol tombol--hantu" type="button" id="kartu-bagikan">
+              <Fragment set:html={icons['share-linear']} />Bagikan
+            </button>
+            <button class="tombol tombol--hantu" type="button" id="kartu-ulang">
+              <Fragment set:html={icons['restart-linear']} />Ulangi
+            </button>
+          </div>
+        </div>
+        <div class="kartu-pratinjau">
+          <canvas id="kartu-kanvas" width="1080" height="1350" role="img" aria-label="Pratinjau Kartu Sila dengan cap dermaga yang sudah disinggahi"></canvas>
+        </div>
+      </section>
+    </main>
+
+    <footer class="kaki">
+      <div>
+        <h2>Tentang proyek ini</h2>
+        <p>
+          Sila di Tepian Musi adalah proyek inovasi untuk mata kuliah Pendidikan Pancasila, dibuat oleh Raffa Gamadan Rifandi,
+          mahasiswa Fakultas Kedokteran Universitas Sriwijaya angkatan 2026.
+        </p>
+        <p>
+          Semua model 3D di sini dibuat sendiri di Blender lewat skrip Python, begitu juga teksturnya. Suara sungai dan mesin
+          ketek dibuat langsung di peramban. Bangunannya adalah tafsiran berdasarkan foto dan tulisan, bukan replika hasil
+          pengukuran.
+        </p>
+        <p>Ikon antarmuka memakai Solar oleh 480 Design (lisensi CC BY 4.0).</p>
+      </div>
+      <div>
+        <details>
+          <summary>Semua sumber ({allSources.length})</summary>
+          <ol>
+            {allSources.map((src) => (
+              <li>{src.url ? <a href={src.url} rel="noopener" target="_blank">{src.label}</a> : src.label}</li>
+            ))}
+          </ol>
+        </details>
+      </div>
+      <div class="kaki-bawah">
+        <span>© {year} Raffa Gamadan Rifandi · FK Universitas Sriwijaya</span>
+        <span>Dibuat dengan Astro, three.js, dan GSAP</span>
+      </div>
+    </footer>
+
+    <div class="hud" id="hud" role="dialog" aria-modal="true" aria-labelledby="hud-judul" inert>
+      <div class="hud-atas">
+        <div class="hud-judul" id="hud-judul"><span id="hud-sub"></span><b id="hud-title"></b></div>
+        <button class="tombol tombol--hantu" type="button" id="hud-tutup">
+          <Fragment set:html={icons['arrow-left-linear']} /><span class="label">Kembali ke perjalanan</span>
+        </button>
+      </div>
+      <div class="hud-jangkar" id="hud-jangkar"></div>
+      <section class="hud-lembar" id="hud-lembar" aria-live="polite"></section>
+    </div>
+
+    <dialog class="peta" id="peta" aria-labelledby="peta-judul">
+      <div class="peta-kepala">
+        <h2 id="peta-judul">Peta perjalanan</h2>
+        <button class="tombol tombol--hantu tombol--ikon" type="button" id="tutup-peta" aria-label="Tutup peta">
+          <Fragment set:html={icons['close-linear']} />
+        </button>
+      </div>
+      <div class="peta-isi">
+        <svg viewBox={`0 0 ${MW} ${MH}`} role="img" aria-labelledby="peta-svg-judul">
+          <title id="peta-svg-judul">Sungai Musi dari hilir sampai Jembatan Ampera dengan lima dermaga</title>
+          <rect x="0" y="0" width={MW} height={MH} rx="14" fill="#10261f" />
+          <path d={riverPath} fill="#2b4a52" />
+          <path d={tripPath} fill="none" stroke="#d8a33e" stroke-width="2" stroke-dasharray="5 6" stroke-linecap="round" />
+          <line x1={bridge.x1} x2={bridge.x1} y1={bridge.y1} y2={bridge.y2} stroke="#c0392b" stroke-width="5" stroke-linecap="round" />
+          <text x={Number(bridge.x1) - 8} y={Number(bridge.y1) + 22} text-anchor="end" fill="#e8ede3" font-size="14" font-family="Plus Jakarta Sans Variable, sans-serif">Ampera</text>
+          <text x="40" y="26" fill="rgba(232,237,227,0.6)" font-size="13" font-family="Plus Jakarta Sans Variable, sans-serif">Seberang Ilir</text>
+          <text x="40" y={MH - 14} fill="rgba(232,237,227,0.6)" font-size="13" font-family="Plus Jakarta Sans Variable, sans-serif">Seberang Ulu</text>
+          <text x={MW - 22} y="26" text-anchor="end" fill="rgba(232,237,227,0.6)" font-size="13" font-family="Plus Jakarta Sans Variable, sans-serif">Utara ↑</text>
+          {
+            marks.map((m) => (
+              <g class="peta-titik">
+                <circle cx={m.x} cy={m.y} r="13" fill="#0a1512" stroke="#d8a33e" stroke-width="2" />
+                <text x={m.x} y={Number(m.y) + 4.5} text-anchor="middle" fill="#f0cb76" font-size="11" font-weight="700" font-family="Newsreader Variable, serif">
+                  {m.n}
+                </text>
+              </g>
+            ))
+          }
+          <circle id="peta-ketek" cx={mx(START[2])} cy={my(START[0])} r="6" fill="#8f1126" stroke="#e8ede3" stroke-width="2" data-z0={Z0} data-x0={X0} data-sc={sc} />
+        </svg>
+        <ul class="peta-daftar">
+          {
+            stations.map((s) => (
+              <li>
+                <a href={`#${s.id}`} data-peta={s.num - 1}>
+                  <b>
+                    {s.roman}. {s.title}
+                  </b>
+                  <span>
+                    {s.place} · {s.clock}
+                  </span>
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </dialog>
+
+    <script>
+      import '../scripts/main';
+    </script>
+  </body>
+</html>
