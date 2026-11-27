@@ -2,7 +2,7 @@
 
 Situs 3D interaktif tentang nilai Pancasila dalam budaya Palembang. Pengunjung naik ketek dari hilir Sungai Musi pada pukul 05.20, singgah di lima dermaga, dan tiba di bawah Jembatan Ampera saat malam. Setiap dermaga membawa satu sila dan satu hal yang bisa dicoba langsung di dalam adegan.
 
-Proyek inovasi untuk UAS Pendidikan Pancasila (MKDU), Fakultas Kedokteran Universitas Sriwijaya, oleh Raffa Gamadan Rifandi (angkatan 2026).
+Proyek inovasi untuk UAS Pendidikan Pancasila (MKDU), Fakultas Kedokteran Universitas Sriwijaya, oleh Raffa Gamadan Rifandi (Pendidikan Dokter 2026).
 
 ## Lima dermaga
 
